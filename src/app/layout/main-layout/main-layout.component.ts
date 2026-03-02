@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import {
   NavigationEnd,
   Router,
@@ -19,6 +19,7 @@ import {
   heroCog6Tooth,
 } from '@ng-icons/heroicons/outline';
 import { FooterComponent } from '../footer/footer.component';
+import { AuthService } from '../../core/auth/auth.service';
 
 type MenuItem = {
   label: string;
@@ -54,7 +55,9 @@ type MenuItem = {
 })
 export class MainLayoutComponent {
   protected readonly title = signal('BusinesManager');
-  protected readonly user = signal({ name: 'João Silva' });
+  protected readonly user = computed(
+    () => this.auth.user() ?? { id: 0, name: 'Usuário', email: '' }
+  );
 
   protected readonly menuItems: MenuItem[] = [
     { label: 'Home', path: '', icon: 'heroHome' },
@@ -70,7 +73,10 @@ export class MainLayoutComponent {
   protected readonly userMenuOpen = signal(false);
   protected readonly currentPageTitle = signal('Home');
 
-  constructor(private readonly router: Router) {
+  constructor(
+    private readonly router: Router,
+    private readonly auth: AuthService
+  ) {
     this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe(() => {
@@ -96,7 +102,7 @@ export class MainLayoutComponent {
   }
 
   protected logout(): void {
-    // Mocked logout handler for now.
-    console.log('Logout clicked');
+    this.userMenuOpen.set(false);
+    this.auth.logout();
   }
 }

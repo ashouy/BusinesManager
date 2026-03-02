@@ -1,6 +1,12 @@
 import { Component } from '@angular/core';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -12,7 +18,11 @@ import { RouterLink } from '@angular/router';
 export class LoginComponent {
   protected form: FormGroup;
 
-  constructor(private readonly fb: FormBuilder) {
+  constructor(
+    private readonly fb: FormBuilder,
+    private readonly auth: AuthService,
+    private readonly router: Router
+  ) {
     this.form = this.fb.nonNullable.group({
       login: ['', [Validators.required]],
       senha: ['', [Validators.required]],
@@ -21,7 +31,18 @@ export class LoginComponent {
 
   protected onSubmit(): void {
     if (this.form.invalid) return;
-    // TODO: call auth service
-    console.log('Login', this.form.getRawValue());
+    const credentials = this.form.getRawValue() as {
+      login: string;
+      senha: string;
+    };
+
+    this.auth.login(credentials).subscribe({
+      next: () => {
+        this.router.navigate(['/']);
+      },
+      error: (err) => {
+        console.error('Erro ao fazer login', err);
+      },
+    });
   }
 }

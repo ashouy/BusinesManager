@@ -9,13 +9,23 @@ import { RelatoriosPageComponent } from './features/relatorios/relatorios.compon
 import { ConfiguracoesPageComponent } from './features/configuracoes/configuracoes.component';
 import { LoginComponent } from './auth/login/login.component';
 import { RecoverPasswordComponent } from './auth/recover-password/recover-password.component';
+import { authGuard, guestGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'recuperar-senha', component: RecoverPasswordComponent },
+  {
+    path: 'login',
+    component: LoginComponent,
+    canActivate: [guestGuard],
+  },
+  {
+    path: 'recuperar-senha',
+    component: RecoverPasswordComponent,
+    canActivate: [guestGuard],
+  },
   {
     path: '',
     component: MainLayoutComponent,
+    canActivate: [authGuard],
     children: [
       { path: '', component: HomePageComponent },
       { path: 'agenda', component: AgendaPageComponent },
