@@ -1,8 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { delay, of, tap, map, catchError } from 'rxjs';
+import { of, tap, map, catchError, throwError } from 'rxjs';
 import { ToastService } from '../toast/toast.service';
+import { API_CONFIG } from '../config/api.config';
 
 export type AuthUser = {
   name: string;
@@ -15,7 +16,6 @@ type AuthResponse = {
 };
 
 const USER_KEY = 'bm_auth_user';
-const TOKEN_REFRESH_URL = '/api/auth/refresh';
 
 @Injectable({
   providedIn: 'root',
@@ -42,26 +42,18 @@ export class AuthService {
       return of(false);
     }
 
-    // When you have a real backend, replace this mock with:
-    // return this.http
-    //  .post<AuthResponse | null>(TOKEN_REFRESH_URL, {})
-    //  .pipe( ... );
-
-    const mockResponse: AuthResponse | null = {
-      token: 'mock-refresh-token',
-      user: currentUser,
-    };
-
-    return of(mockResponse).pipe(
+    // POST to backend refresh endpoint. The server validates the token from the cookie
+    // and sets a new one if still valid.
+    return this.http.post<AuthResponse | null>(API_CONFIG.auth.refresh, { }, { withCredentials: true }).pipe(
       tap((response) => {
-        if (response && response.token) {
+        if (response && response.user) {
           window.localStorage.setItem(USER_KEY, JSON.stringify(response.user));
           this._user.set(response.user);
         } else {
           this.handleExpiredSession();
         }
       }),
-      map((response) => !!(response && response.token)),
+      map((response) => !!(response && response.user)),
       catchError(() => {
         this.handleExpiredSession();
         return of(false);
@@ -70,42 +62,45 @@ export class AuthService {
   }
 
   login(credentials: { login: string; senha: string }) {
-    // In a real backend flow, this would POST to an auth endpoint and the
-    // server would set an HttpOnly, Secure cookie with the JWT. The client
-    // never stores the token, only the user info for convenience.
-    //
-    // Example real call:
-    // return this.http.post<AuthResponse>('/api/auth/login', credentials).pipe(
-    //   tap((response) => {
-    //     window.localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-    //     this._user.set(response.user);
-    //   })
-    // );
-
-    // Mocked backend response with a fake JWT and user payload.
-    const mockResponse: AuthResponse = {
-      token: 'mock-jwt-token.' + btoa(credentials.login) + '.signature',
-      user: {
-        name: credentials.login || 'Usuário',
-        email: `${credentials.login || 'user'}@example.com`,
-      },
-    };
-
-    return of(mockResponse).pipe(
-      delay(500),
+    // POST to backend auth endpoint. The server sets an HttpOnly, Secure cookie
+    // with the JWT. The client stores only the user info in localStorage for UI convenience.
+    return this.http.post<AuthResponse>(API_CONFIG.auth.login, credentials, { withCredentials: true }).pipe(
       tap((response) => {
-        window.localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-        this._user.set(response.user);
+        if (response && response.user) {
+          window.localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+          this._user.set(response.user);
+          this.toastService.show('Login bem-sucedido', 'info');
+        }
+      }),
+      catchError((error) => {
+        if (error.status === 401) {
+          this.toastService.show('Credenciais inválidas', 'error');
+        } else {
+          this.toastService.show('Erro ao fazer login. Tente novamente.', 'error');
+        }
+        return throwError(() => error);
       })
     );
   }
 
   logout(): void {
-    // In a real backend flow, you would typically also notify the server so it
-    // can clear the HttpOnly cookie, e.g. POST /api/auth/logout.
-    window.localStorage.removeItem(USER_KEY);
-    this._user.set(null);
-    this.router.navigate(['/login']);
+    // POST to backend logout endpoint to clear the HttpOnly cookie,
+    // then clear local state and navigate to login.
+    this.http.post(API_CONFIG.auth.logout, {}, { withCredentials: true }).subscribe({
+      next: () => {
+        window.localStorage.removeItem(USER_KEY);
+        this._user.set(null);
+        this.toastService.show('Logout bem-sucedido', 'info');
+        this.router.navigate(['/login']);
+      },
+      error: (err) => {
+        // Even if logout fails, clear local state and redirect
+        console.error('Erro ao fazer logout', err);
+        window.localStorage.removeItem(USER_KEY);
+        this._user.set(null);
+        this.router.navigate(['/login']);
+      }
+    });
   }
 
   private handleExpiredSession(): void {

@@ -7,6 +7,7 @@ import {
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { signal } from '@angular/core';
 
 @Component({
   selector: 'app-login',
@@ -17,6 +18,7 @@ import { AuthService } from '../../core/auth/auth.service';
 })
 export class LoginComponent {
   protected form: FormGroup;
+  protected isLoading = signal(false);
 
   constructor(
     private readonly fb: FormBuilder,
@@ -31,6 +33,8 @@ export class LoginComponent {
 
   protected onSubmit(): void {
     if (this.form.invalid) return;
+    
+    this.isLoading.set(true);
     const credentials = this.form.getRawValue() as {
       login: string;
       senha: string;
@@ -38,9 +42,11 @@ export class LoginComponent {
 
     this.auth.login(credentials).subscribe({
       next: () => {
+        this.isLoading.set(false);
         this.router.navigate(['/']);
       },
       error: (err) => {
+        this.isLoading.set(false);
         console.error('Erro ao fazer login', err);
       },
     });

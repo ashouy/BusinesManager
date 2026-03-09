@@ -42,10 +42,10 @@
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
         <button
           type="submit"
-          [disabled]="form.invalid"
+          [disabled]="form.invalid || isLoading()"
           class="w-full sm:w-auto px-4 py-2 rounded-lg bg-primary hover:bg-primary-soft text-surface font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Entrar
+          {{ isLoading() ? 'Entrando...' : 'Entrar' }}
         </button>
         <a
           routerLink="/recuperar-senha"
